@@ -1,6 +1,8 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ExchangeController;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,14 +16,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->middleware(HandleCors::class)->group(function () {
 
     /*
      * Public routes
      */
     Route::prefix('auth')->group(function () {
-        Route::post('login', 'AuthController@login');
-        Route::post('register', 'AuthController@register');
+        Route::post('login', [AuthController::class, 'login']);
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('refresh-token', [AuthController::class, 'refreshToken']);
     });
 
     /*
@@ -30,6 +33,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:api')->group(function () {
         Route::prefix('auth')->group(function () {
             Route::post('logout', 'AuthController@logout');
+        });
+
+        Route::prefix('exchange')->group(function () {
+            Route::get('rates', [ExchangeController::class, 'index']);
+            Route::post('send', [ExchangeController::class, 'sendMoney']);
         });
     });
 
