@@ -25,6 +25,7 @@ return new class extends Migration {
             $table->double('exchange_rate', 20, 8);
             $table->double('fee', 20, 8);
             $table->string('amount_type')->comment('send, receive');
+            $table->foreignId('user_voucher_id')->nullable()->constrained('user_vouchers');
             $table->string('status')->default('pending');
             $table->string('description')->nullable();
             $table->timestamps();

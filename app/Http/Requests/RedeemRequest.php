@@ -2,14 +2,14 @@
 
 namespace App\Http\Requests;
 
-class ExchangeRequest extends FormRequestResponse
+class RedeemRequest extends FormRequestResponse
 {
     /**
      * Determine if the user is authorized to make this request.
      *
      * @return bool
      */
-    public function authorize(): bool
+    public function authorize()
     {
         return true;
     }
@@ -19,12 +19,10 @@ class ExchangeRequest extends FormRequestResponse
      *
      * @return array<string, mixed>
      */
-    public function rules(): array
+    public function rules()
     {
         return [
-            'to_currency' => 'required|string',
-            'amount' => 'required|numeric|min:50000',
-            'voucher_code' => 'nullable|string',
+            'voucher_code' => 'required|string',
         ];
     }
 }

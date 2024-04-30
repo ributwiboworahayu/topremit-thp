@@ -5,7 +5,9 @@ namespace App\Services\Exchange;
 use App\Repositories\AppSetting\AppSettingRepository;
 use App\Repositories\Exchange\ExchangeRepository;
 use App\Repositories\Payment\PaymentRepository;
+use App\Repositories\Reward\RewardRepository;
 use App\Repositories\Transaction\TransactionRepository;
+use App\Repositories\Voucher\VoucherRepository;
 use App\Traits\ServiceResponser;
 use LaravelEasyRepository\Service;
 
@@ -22,23 +24,29 @@ class ExchangeServiceImplement extends Service implements ExchangeService
     protected AppSettingRepository $appSettingRepository;
     protected TransactionRepository $transactionRepository;
     protected PaymentRepository $paymentRepository;
+    protected RewardRepository $rewardRepository;
+    protected VoucherRepository $voucherRepository;
 
     public function __construct(
         ExchangeRepository    $mainRepository,
         AppSettingRepository  $appSettingRepository,
         TransactionRepository $transactionRepository,
-        PaymentRepository     $paymentRepository
+        PaymentRepository     $paymentRepository,
+        RewardRepository      $rewardRepository,
+        VoucherRepository     $voucherRepository
     )
     {
         $this->mainRepository = $mainRepository;
         $this->appSettingRepository = $appSettingRepository;
         $this->transactionRepository = $transactionRepository;
         $this->paymentRepository = $paymentRepository;
+        $this->rewardRepository = $rewardRepository;
+        $this->voucherRepository = $voucherRepository;
     }
 
-    public function convert(string $fromCurrency, string $toCurrency, float $amount): array
+    public function convert(int $userId, string $fromCurrency, string $toCurrency, float $amount, ?string $voucherCode): array
     {
-        $data = $this->mainRepository->getExchangeRate($fromCurrency, $toCurrency);
+        $data = $this->getExchangeRate($fromCurrency, $toCurrency);
         if (!$data['status']) {
             return $this->finalResultFail($data['data'], $data['message']);
         }
@@ -47,25 +55,59 @@ class ExchangeServiceImplement extends Service implements ExchangeService
         if ($fromCurrency == 'IDR') {
             $fee = $this->appSettingRepository->getValueByKey('exchange_fee');
         }
-        $data['data']['from_amount'] = $amount - $fee;
+
+        $discount = 0;
+        if ($voucherCode) {
+            $getVoucherDiscount = $this->getVoucherDiscount($userId, $voucherCode, $amount);
+            if (!$getVoucherDiscount['status']) {
+                return $this->finalResultFail([], $getVoucherDiscount['message']);
+            }
+
+            $discount = $getVoucherDiscount['data'];
+        }
+
+        $data['data']['from_amount'] = ($amount - $fee) - $discount;
         $data['data']['transfer_fee'] = (float)$fee;
-        $data['data']['to_amount'] = floor($amount * $data['data']['exchange_rate'] * 10000) / 10000;
+        $data['data']['to_amount'] = floor(($amount - $fee) * $data['data']['exchange_rate'] * 10000) / 10000;
 
         return $this->finalResultSuccess($data['data']);
     }
 
-    public function sendMoney(int $userId, string $fromCurrency, string $toCurrency, float $amount, string $receiverEmail, ?string $note): array
+    public function sendMoney(int $userId, string $fromCurrency, string $toCurrency, float $amount, string $receiverEmail, ?string $note, ?string $voucherCode): array
     {
         $isVerified = $this->mainRepository->isUserVerified($userId);
         if (!$isVerified['status']) {
             return $this->finalResultFail([], 'User not verified, please verify your account');
         }
 
-        $data = $this->convert($fromCurrency, $toCurrency, $amount);
-        if (!$data['status']) {
-            return $this->finalResultFail($data['data'], $data['message']);
+        $data = $this->getExchangeRate($fromCurrency, $toCurrency);
+
+        $fee = 0;
+        if ($fromCurrency == 'IDR') {
+            $fee = $this->appSettingRepository->getValueByKey('exchange_fee');
         }
 
+
+        // check use voucher
+        $discount = 0;
+        if ($voucherCode) {
+            $getVoucherDiscount = $this->getVoucherDiscount($userId, $voucherCode, $amount);
+            if (!$getVoucherDiscount['status']) {
+                return $this->finalResultFail([], $getVoucherDiscount['message']);
+            }
+
+            $usedVoucher = $this->voucherRepository->useVoucher($userId, $voucherCode);
+            if (!$usedVoucher['status']) {
+                return $this->finalResultFail([], $usedVoucher['message']);
+            }
+
+            $discount = $getVoucherDiscount['data'];
+            $amount = $amount - $discount;
+        }
+
+        $data['data']['from_amount'] = ($amount - $fee);
+        $data['data']['transfer_fee'] = (float)$fee;
+        $data['data']['to_amount'] = floor((($amount - $fee) + $discount) * $data['data']['exchange_rate'] * 10000) / 10000;
 
         $getReceiverId = $this->mainRepository->getUserIdByEmail($receiverEmail);
         if (!$getReceiverId['status']) {
@@ -83,6 +125,7 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             'exchange_rate' => $data['data']['exchange_rate'],
             'fee' => $data['data']['transfer_fee'],
             'amount_type' => 'send',
+            'user_voucher_id' => $voucherCode ? $usedVoucher['data']['id'] : null,
             'status' => 'pending',
             'description' => $note,
         ];
@@ -93,6 +136,7 @@ class ExchangeServiceImplement extends Service implements ExchangeService
         }
 
         $data['data']['payment_code'] = $sender['data']['transaction_code'];
+        $data['data']['payment_amount'] = $amount;
         return $this->finalResultSuccess($data['data']);
     }
 
@@ -169,6 +213,46 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             return $this->finalResultFail($receiver['data'], $receiver['message']);
         }
 
-        return $this->finalResultSuccess($data);
+        // insert reward
+        $rewardData = [
+            'user_id' => $transaction['data']['user_id'],
+            'point' => $transaction['data']['amount'] / 1000,
+        ];
+        $reward = $this->rewardRepository->insertReward($rewardData);
+        if (!$reward['status']) {
+            return $this->finalResultFail($reward['data'], $reward['message']);
+        }
+
+        return $this->finalResultSuccess();
+    }
+
+    private function getVoucherDiscount($userId, $voucherCode, $amount): array
+    {
+        $voucher = $this->voucherRepository->findByCode($voucherCode);
+        if (!$voucher['status']) {
+            return $this->finalResultFail([], $voucher['message']);
+        }
+
+        $availableVoucher = $this->voucherRepository->getAvailableVoucherForUser($voucher['data']['id'], $userId);
+        if (!$availableVoucher['status']) {
+            return $this->finalResultFail([], $availableVoucher['message']);
+        }
+        if (!$availableVoucher['data']) {
+            return $this->finalResultFail([], 'Voucher Not Redeemed');
+        }
+
+        $discount = ($voucher['data']['discount_percentage'] / 100) * $amount;
+
+        return $this->finalResultSuccess($discount);
+    }
+
+    private function getExchangeRate(string $fromCurrency, string $toCurrency): array
+    {
+        $response = $this->mainRepository->getExchangeRate($fromCurrency, $toCurrency);
+        if (!$response['status']) {
+            return $this->finalResultFail([], $response['message']);
+        }
+
+        return $this->finalResultSuccess($response['data']);
     }
 }

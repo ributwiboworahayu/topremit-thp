@@ -41,6 +41,7 @@ class TransactionRepositoryImplement extends Eloquent implements TransactionRepo
                 'exchange_rate' => $data['exchange_rate'],
                 'fee' => $data['fee'],
                 'amount_type' => $data['amount_type'],
+                'user_voucher_id' => $data['user_voucher_id'] ?? null,
                 'status' => $data['status'],
                 'description' => $data['description'] ?? null,
             ]);

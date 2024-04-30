@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ExchangeController;
+use App\Http\Controllers\VoucherController;
 use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,11 @@ Route::prefix('v1')->middleware(HandleCors::class)->group(function () {
         Route::prefix('exchange')->group(function () {
             Route::get('rates', [ExchangeController::class, 'index']);
             Route::post('send', [ExchangeController::class, 'sendMoney']);
+        });
+
+        Route::prefix('voucher')->group(function () {
+            Route::get('/', [VoucherController::class, 'index']);
+            Route::post('redeem', [VoucherController::class, 'redeem']);
         });
     });
 

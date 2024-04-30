@@ -10,15 +10,17 @@ return new class extends Migration {
      *
      * @return void
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('rewards', function (Blueprint $table) {
+        Schema::create('user_vouchers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->integer('point');
-            $table->string('redeemed_point')->default(0);
-            $table->integer('redeemed_count')->default(0);
-            $table->dateTime('last_redeemed_at')->nullable();
+            $table->foreignId('voucher_id')->constrained()->onDelete('cascade');
+            $table->dateTime('redeemed_at');
+            $table->boolean('is_used')->default(false);
+            $table->dateTime('used_at')->nullable();
+            $table->integer('redeemed_point');
+            $table->boolean('is_expired')->default(false);
             $table->timestamps();
             $table->softDeletes();
         });
@@ -29,8 +31,8 @@ return new class extends Migration {
      *
      * @return void
      */
-    public function down(): void
+    public function down()
     {
-        Schema::dropIfExists('rewards');
+        Schema::dropIfExists('user_vouchers');
     }
 };

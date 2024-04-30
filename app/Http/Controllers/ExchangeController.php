@@ -20,9 +20,11 @@ class ExchangeController extends Controller
     public function index(ExchangeRequest $request): JsonResponse
     {
         $fromCurrency = 'IDR'; // default currency is 'IDR
+        $userId = auth()->id();
         $toCurrency = $request->to_currency;
         $amount = $request->amount;
-        $result = $this->exchangeService->convert($fromCurrency, $toCurrency, $amount);
+        $voucherCode = $request->voucher_code;
+        $result = $this->exchangeService->convert($userId, $fromCurrency, $toCurrency, $amount, $voucherCode);
         if (!$result['status']) {
             return $this->failResponse(message: $result['message']);
         }
@@ -37,13 +39,15 @@ class ExchangeController extends Controller
         $amount = $request->amount;
         $receiverEmail = $request->receiver_email;
         $note = $request->note;
+        $voucherCode = $request->voucher_code;
         $result = $this->exchangeService->sendMoney(
             userId: auth()->id(),
             fromCurrency: $fromCurrency,
             toCurrency: $toCurrency,
             amount: $amount,
             receiverEmail: $receiverEmail,
-            note: $note
+            note: $note,
+            voucherCode: $voucherCode
         );
         if (!$result['status']) {
             return $this->failResponse(message: $result['message']);

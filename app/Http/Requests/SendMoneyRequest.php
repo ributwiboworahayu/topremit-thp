@@ -23,9 +23,10 @@ class SendMoneyRequest extends FormRequestResponse
     {
         return [
             'to_currency' => 'required|string',
-            'amount' => 'required|numeric|min:100000',
+            'amount' => 'required|numeric|min:50000',
             'receiver_email' => 'required|email',
             'note' => 'nullable|string',
+            'voucher_code' => 'nullable|string',
         ];
     }
 }
