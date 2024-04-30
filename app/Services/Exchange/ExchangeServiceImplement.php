@@ -223,6 +223,11 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             return $this->finalResultFail($reward['data'], $reward['message']);
         }
 
+        // send notif
+        dispatch(function () use ($transaction) {
+            $this->mainRepository->sendNotification($transaction['data']['user_id']);
+        });
+
         return $this->finalResultSuccess();
     }
 

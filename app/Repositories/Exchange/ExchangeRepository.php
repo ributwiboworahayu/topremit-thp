@@ -12,4 +12,6 @@ interface ExchangeRepository extends Repository
     public function getUserIdByEmail(string $email): array;
 
     public function isUserVerified(int $userId): array;
+
+    public function sendNotification(int $userId): array;
 }

@@ -4,6 +4,7 @@ namespace App\Repositories\Exchange;
 
 use App\Models\Exchange;
 use App\Models\User;
+use App\Notifications\TransactionSuccessNotification;
 use App\Traits\ServiceResponser;
 use Illuminate\Support\Facades\Http;
 use LaravelEasyRepository\Implementations\Eloquent;
@@ -64,5 +65,18 @@ class ExchangeRepositoryImplement extends Eloquent implements ExchangeRepository
         }
 
         return $this->finalResultSuccess($user->is_verified);
+    }
+
+    public function sendNotification(int $userId): array
+    {
+        $user = $this->userModel->find($userId);
+        if (!$user) {
+            return $this->finalResultFail([], 'User not found');
+        }
+
+        // Send notification to email
+        $user->notify(new TransactionSuccessNotification($user));
+
+        return $this->finalResultSuccess('Notification sent');
     }
 }
