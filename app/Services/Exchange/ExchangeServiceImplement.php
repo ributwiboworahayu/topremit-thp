@@ -81,6 +81,9 @@ class ExchangeServiceImplement extends Service implements ExchangeService
         }
 
         $data = $this->getExchangeRate($reqData['from_currency'], $reqData['to_currency']);
+        if (!$data['status']) {
+            return $this->finalResultFail($data['data'], $data['message']);
+        }
 
         $fee = 0;
         if ($reqData['from_currency'] == 'IDR') {
@@ -88,7 +91,7 @@ class ExchangeServiceImplement extends Service implements ExchangeService
         }
 
         if ($reqData['to_currency'] == 'AUD' && $reqData['address'] == null) {
-            return $this->finalResultFail([], 'Address Needed for AUS');
+            return $this->finalResultFail([], 'Address Needed for AUD');
         }
 
 
@@ -108,6 +111,7 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             $discount = $getVoucherDiscount['data'];
             $reqData['amount'] -= $discount;
         }
+
 
         $data['data']['from_amount'] = ($reqData['amount'] - $fee);
         $data['data']['transfer_fee'] = (float)$fee;
