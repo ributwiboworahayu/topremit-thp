@@ -27,6 +27,8 @@
 1. Jalankan `php artisan serve` untuk menjalankan aplikasi.
 2. Aplikasi dapat diakses di `http://localhost:8000`.
 3. Gunakan Postman atau aplikasi sejenis untuk mengakses API.
+4. Login dengan menggunakan API endpoint `/api/v1/auth/login`. email: `superadmin@gmail.com`, password: `password`.
+5. Gunakan token yang diberikan untuk mengakses API lainnya.
 
 # Desain API:
 
