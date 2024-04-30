@@ -34,21 +34,17 @@ class ExchangeController extends Controller
 
     public function sendMoney(SendMoneyRequest $request): JsonResponse
     {
-        $fromCurrency = 'IDR'; // default currency is 'IDR
-        $toCurrency = $request->to_currency;
-        $amount = $request->amount;
-        $receiverEmail = $request->receiver_email;
-        $note = $request->note;
-        $voucherCode = $request->voucher_code;
-        $result = $this->exchangeService->sendMoney(
-            userId: auth()->id(),
-            fromCurrency: $fromCurrency,
-            toCurrency: $toCurrency,
-            amount: $amount,
-            receiverEmail: $receiverEmail,
-            note: $note,
-            voucherCode: $voucherCode
-        );
+        $requestData = [
+            'user_id' => auth()->id(),
+            'from_currency' => 'IDR', // default currency is 'IDR
+            'to_currency' => $request->to_currency,
+            'amount' => $request->amount,
+            'receiver_email' => $request->receiver_email,
+            'address' => $request->address,
+            'note' => $request->note,
+            'voucher_code' => $request->voucher_code
+        ];
+        $result = $this->exchangeService->sendMoney($requestData);
         if (!$result['status']) {
             return $this->failResponse(message: $result['message']);
         }

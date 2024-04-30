@@ -73,61 +73,65 @@ class ExchangeServiceImplement extends Service implements ExchangeService
         return $this->finalResultSuccess($data['data']);
     }
 
-    public function sendMoney(int $userId, string $fromCurrency, string $toCurrency, float $amount, string $receiverEmail, ?string $note, ?string $voucherCode): array
+    public function sendMoney($reqData): array
     {
-        $isVerified = $this->mainRepository->isUserVerified($userId);
+        $isVerified = $this->mainRepository->isUserVerified($reqData['user_id']);
         if (!$isVerified['status']) {
             return $this->finalResultFail([], 'User not verified, please verify your account');
         }
 
-        $data = $this->getExchangeRate($fromCurrency, $toCurrency);
+        $data = $this->getExchangeRate($reqData['from_currency'], $reqData['to_currency']);
 
         $fee = 0;
-        if ($fromCurrency == 'IDR') {
+        if ($reqData['from_currency'] == 'IDR') {
             $fee = $this->appSettingRepository->getValueByKey('exchange_fee');
+        }
+
+        if ($reqData['to_currency'] == 'AUD' && $reqData['address'] == null) {
+            return $this->finalResultFail([], 'Address Needed for AUS');
         }
 
 
         // check use voucher
         $discount = 0;
-        if ($voucherCode) {
-            $getVoucherDiscount = $this->getVoucherDiscount($userId, $voucherCode, $amount);
+        if ($reqData['voucher_code']) {
+            $getVoucherDiscount = $this->getVoucherDiscount($reqData['user_id'], $reqData['voucher_code'], $reqData['amount']);
             if (!$getVoucherDiscount['status']) {
                 return $this->finalResultFail([], $getVoucherDiscount['message']);
             }
 
-            $usedVoucher = $this->voucherRepository->useVoucher($userId, $voucherCode);
+            $usedVoucher = $this->voucherRepository->useVoucher($reqData['user_id'], $reqData['voucher_code']);
             if (!$usedVoucher['status']) {
                 return $this->finalResultFail([], $usedVoucher['message']);
             }
 
             $discount = $getVoucherDiscount['data'];
-            $amount = $amount - $discount;
+            $reqData['amount'] -= $discount;
         }
 
-        $data['data']['from_amount'] = ($amount - $fee);
+        $data['data']['from_amount'] = ($reqData['amount'] - $fee);
         $data['data']['transfer_fee'] = (float)$fee;
-        $data['data']['to_amount'] = floor((($amount - $fee) + $discount) * $data['data']['exchange_rate'] * 10000) / 10000;
+        $data['data']['to_amount'] = floor((($reqData['amount'] - $fee) + $discount) * $data['data']['exchange_rate'] * 10000) / 10000;
 
-        $getReceiverId = $this->mainRepository->getUserIdByEmail($receiverEmail);
+        $getReceiverId = $this->mainRepository->getUserIdByEmail($reqData['receiver_email']);
         if (!$getReceiverId['status']) {
             return $this->finalResultFail([], 'Receiver email not found');
         }
 
         $senderData = [
-            'user_id' => $userId, // the owner of the transaction
-            'sender_id' => $userId,
+            'user_id' => $reqData['user_id'],
+            'sender_id' => $reqData['user_id'],
             'recipient_id' => $getReceiverId['data'],
-            'from_currency' => $fromCurrency,
-            'to_currency' => $toCurrency,
-            'amount' => $amount,
+            'from_currency' => $reqData['from_currency'],
+            'to_currency' => $reqData['to_currency'],
+            'amount' => $reqData['amount'],
             'exchange_amount' => $data['data']['to_amount'],
             'exchange_rate' => $data['data']['exchange_rate'],
             'fee' => $data['data']['transfer_fee'],
             'amount_type' => 'send',
-            'user_voucher_id' => $voucherCode ? $usedVoucher['data']['id'] : null,
+            'user_voucher_id' => $usedVoucher['data']['id'] ?? null,
             'status' => 'pending',
-            'description' => $note,
+            'description' => $reqData['address'] ?? $reqData['note'],
         ];
 
         $sender = $this->transactionRepository->insertTransaction($senderData);
@@ -136,7 +140,7 @@ class ExchangeServiceImplement extends Service implements ExchangeService
         }
 
         $data['data']['payment_code'] = $sender['data']['transaction_code'];
-        $data['data']['payment_amount'] = $amount;
+        $data['data']['payment_amount'] = $reqData['amount'];
         return $this->finalResultSuccess($data['data']);
     }
 

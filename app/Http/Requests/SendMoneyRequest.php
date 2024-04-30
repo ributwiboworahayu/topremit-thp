@@ -27,6 +27,7 @@ class SendMoneyRequest extends FormRequestResponse
             'receiver_email' => 'required|email',
             'note' => 'nullable|string',
             'voucher_code' => 'nullable|string',
+            'address' => 'nullable|string'
         ];
     }
 }
