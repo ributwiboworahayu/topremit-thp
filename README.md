@@ -4,6 +4,30 @@
 2. Inisialisasi sistem manajemen basis data dengan MySQL.
 3. Implementasikan autentikasi pengguna dan otorisasi menggunakan Laravel Passport
 
+# Persiapan Instalasi:
+
+## Kebutuhan instalasi:
+
+- PHP 8.1
+- Composer
+- MySQL Database
+
+## Langkah-langkah instalasi:
+
+1. Clone repository ini.
+2. Jalankan `composer install` untuk menginstal dependensi.
+3. Salin file `.env.example` menjadi `.env` dan sesuaikan konfigurasi database.
+4. Buat Database baru di MySQL.
+5. Jalankan `php artisan key:generate` untuk membuat APP_KEY.
+6. Jalankan `php artisan migrate` untuk membuat tabel-tabel yang diperlukan.
+7. Jalankan `php artisan passport:install` untuk membuat Passport Client.
+
+## Menjalankan Aplikasi:
+
+1. Jalankan `php artisan serve` untuk menjalankan aplikasi.
+2. Aplikasi dapat diakses di `http://localhost:8000`.
+3. Gunakan Postman atau aplikasi sejenis untuk mengakses API.
+
 # Desain API:
 
 1. Rancangan API endpoints untuk fitur-fitur yang diminta.
