@@ -41,7 +41,8 @@ class TransactionRepositoryImplement extends Eloquent implements TransactionRepo
                 'exchange_rate' => $data['exchange_rate'],
                 'fee' => $data['fee'],
                 'amount_type' => $data['amount_type'],
-                'description' => $data['description'],
+                'status' => $data['status'],
+                'description' => $data['description'] ?? null,
             ]);
 
             return $this->finalResultSuccess($data);
@@ -57,5 +58,30 @@ class TransactionRepositoryImplement extends Eloquent implements TransactionRepo
             return $this->setUniqueCode();
         }
         return $code;
+    }
+
+    public function getTransactionByCode(string $code): array
+    {
+        $data = $this->model->where('transaction_code', $code)->first();
+        if (!$data) {
+            return $this->finalResultFail([], 'Transaction not found');
+        }
+
+        return $this->finalResultSuccess($data);
+    }
+
+    public function updateTransactionById(int $id, array $data): array
+    {
+        $transaction = $this->model->find($id);
+        if (!$transaction) {
+            return $this->finalResultFail([], 'Transaction not found');
+        }
+
+        try {
+            $transaction->update($data);
+            return $this->finalResultSuccess($transaction);
+        } catch (Exception $exception) {
+            return $this->finalResultFail([], $exception->getMessage());
+        }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-class ExchangeRequest extends FormRequestResponse
+class UpdateProfileRequest extends FormRequestResponse
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,8 +22,10 @@ class ExchangeRequest extends FormRequestResponse
     public function rules(): array
     {
         return [
-            'to_currency' => 'required|string',
-            'amount' => 'required|numeric|min:100000',
+            'full_name' => 'required|string',
+            'phone_number' => 'required|string',
+            'address' => 'required|string',
+            'country' => 'required|string',
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Services\Exchange;
 
 use App\Repositories\AppSetting\AppSettingRepository;
 use App\Repositories\Exchange\ExchangeRepository;
+use App\Repositories\Payment\PaymentRepository;
 use App\Repositories\Transaction\TransactionRepository;
 use App\Traits\ServiceResponser;
 use LaravelEasyRepository\Service;
@@ -20,16 +21,19 @@ class ExchangeServiceImplement extends Service implements ExchangeService
     protected ExchangeRepository $mainRepository;
     protected AppSettingRepository $appSettingRepository;
     protected TransactionRepository $transactionRepository;
+    protected PaymentRepository $paymentRepository;
 
     public function __construct(
         ExchangeRepository    $mainRepository,
         AppSettingRepository  $appSettingRepository,
-        TransactionRepository $transactionRepository
+        TransactionRepository $transactionRepository,
+        PaymentRepository     $paymentRepository
     )
     {
         $this->mainRepository = $mainRepository;
         $this->appSettingRepository = $appSettingRepository;
         $this->transactionRepository = $transactionRepository;
+        $this->paymentRepository = $paymentRepository;
     }
 
     public function convert(string $fromCurrency, string $toCurrency, float $amount): array
@@ -79,6 +83,7 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             'exchange_rate' => $data['data']['exchange_rate'],
             'fee' => $data['data']['transfer_fee'],
             'amount_type' => 'send',
+            'status' => 'pending',
             'description' => $note,
         ];
 
@@ -87,17 +92,55 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             return $this->finalResultFail($sender['data'], $sender['message']);
         }
 
+        $data['data']['payment_code'] = $sender['data']['transaction_code'];
+        return $this->finalResultSuccess($data['data']);
+    }
+
+    public function storePayment($data): array
+    {
+        $getApiKey = $this->appSettingRepository->getValueByKey('api_key');
+
+        if ($data['api_key'] != $getApiKey) {
+            return $this->finalResultFail([], 'Invalid API Key');
+        }
+
+        $transaction = $this->transactionRepository->getTransactionByCode($data['transaction_code']);
+        if (!$transaction['status']) {
+            return $this->finalResultFail([], $transaction['message']);
+        }
+
+        if ($transaction['data']['status'] != 'pending') {
+            return $this->finalResultFail([], 'Transaction already processed');
+        }
+
+        if ($data['amount'] != $transaction['data']['amount']) {
+            return $this->finalResultFail([], 'Invalid amount');
+        }
+
+        $data['user_id'] = $transaction['data']['user_id'];
+        $data['status'] = 'success';
+        $setPayment = $this->paymentRepository->storePayment($data);
+        if (!$setPayment['status']) {
+            return $this->finalResultFail([], $setPayment['message']);
+        }
+
+        $updateTransaction = $this->transactionRepository->updateTransactionById($transaction['data']['id'], ['status' => 'success']);
+        if (!$updateTransaction['status']) {
+            return $this->finalResultFail([], $updateTransaction['message']);
+        }
+
         $companyReceiverData = [
             'user_id' => 2, // the owner of the transaction (company)
-            'sender_id' => $userId,
+            'sender_id' => $transaction['data']['sender_id'],
             'recipient_id' => 2,
-            'from_currency' => $fromCurrency,
-            'to_currency' => $toCurrency,
-            'amount' => $data['data']['transfer_fee'],
-            'exchange_amount' => $data['data']['transfer_fee'],
+            'from_currency' => $transaction['data']['from_currency'],
+            'to_currency' => $transaction['data']['to_currency'],
+            'amount' => $transaction['data']['fee'],
+            'exchange_amount' => 0,
             'exchange_rate' => 1,
             'fee' => 0,
             'amount_type' => 'receive',
+            'status' => 'success', // 'pending', 'success', 'failed
             'description' => 'Transfer fee',
         ];
 
@@ -106,17 +149,26 @@ class ExchangeServiceImplement extends Service implements ExchangeService
             return $this->finalResultFail($companyReceiver['data'], $companyReceiver['message']);
         }
 
-        $receiverData = $senderData;
-        $receiverData['user_id'] = $getReceiverId['data'];
-        $receiverData['amount'] = $data['data']['from_amount'];
-        $receiverData['fee'] = 0;
-        $receiverData['amount_type'] = 'receive';
+        $receiverData = [
+            'user_id' => $transaction['data']['recipient_id'], // the owner of the transaction
+            'sender_id' => $transaction['data']['sender_id'],
+            'recipient_id' => $transaction['data']['recipient_id'],
+            'from_currency' => $transaction['data']['from_currency'],
+            'to_currency' => $transaction['data']['to_currency'],
+            'amount' => $transaction['data']['amount'] - $transaction['data']['fee'],
+            'exchange_amount' => $transaction['data']['exchange_amount'],
+            'exchange_rate' => $transaction['data']['exchange_rate'],
+            'fee' => 0,
+            'amount_type' => 'receive',
+            'status' => 'success', // 'pending', 'success', 'failed
+            'description' => $transaction['data']['description'],
+        ];
 
         $receiver = $this->transactionRepository->insertTransaction($receiverData);
         if (!$receiver['status']) {
             return $this->finalResultFail($receiver['data'], $receiver['message']);
         }
 
-        return $this->finalResultSuccess($data['data']);
+        return $this->finalResultSuccess($data);
     }
 }

@@ -22,7 +22,6 @@ class SendMoneyRequest extends FormRequestResponse
     public function rules(): array
     {
         return [
-            'from_currency' => 'required|string',
             'to_currency' => 'required|string',
             'amount' => 'required|numeric|min:100000',
             'receiver_email' => 'required|email',

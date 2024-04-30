@@ -27,12 +27,15 @@ Route::prefix('v1')->middleware(HandleCors::class)->group(function () {
         Route::post('refresh-token', [AuthController::class, 'refreshToken']);
     });
 
+    Route::post('gateway/payment', [ExchangeController::class, 'storePayment']);
+
     /*
      * Authenticated routes
      */
     Route::middleware('auth:api')->group(function () {
         Route::prefix('auth')->group(function () {
-            Route::post('logout', 'AuthController@logout');
+            Route::post('logout', [AuthController::class, 'logout']);
+            Route::post('verify-profile', [AuthController::class, 'verifyProfile']);
         });
 
         Route::prefix('exchange')->group(function () {

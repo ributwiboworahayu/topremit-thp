@@ -10,18 +10,5 @@ class Transaction extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = [
-        'user_id',
-        'sender_id',
-        'recipient_id',
-        'transaction_code',
-        'from_currency',
-        'to_currency',
-        'amount',
-        'exchange_amount',
-        'exchange_rate',
-        'fee',
-        'amount_type',
-        'description',
-    ];
+    protected $guarded = [];
 }

@@ -40,5 +40,12 @@ class DatabaseSeeder extends Seeder
             'value' => 10000,
             'description' => '(IDR) This is the fee for exchange transaction'
         ]);
+
+        AppSetting::create([
+            'key' => 'api_key',
+            'name' => 'API Key',
+            'value' => '123456',
+            'description' => 'This is the API Key for the payment gateway'
+        ]);
     }
 }

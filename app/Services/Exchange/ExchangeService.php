@@ -10,4 +10,6 @@ interface ExchangeService extends BaseService
     public function convert(string $fromCurrency, string $toCurrency, float $amount): array;
 
     public function sendMoney(int $userId, string $fromCurrency, string $toCurrency, float $amount, string $receiverEmail, ?string $note): array;
+
+    public function storePayment(array $data): array;
 }

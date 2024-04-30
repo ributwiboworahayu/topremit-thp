@@ -10,21 +10,15 @@ return new class extends Migration {
      *
      * @return void
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('transactions', function (Blueprint $table) {
+        Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('sender_id')->constrained('users');
-            $table->foreignId('recipient_id')->constrained('users');
-            $table->string('transaction_code')->unique();
-            $table->string('from_currency');
-            $table->string('to_currency');
+            $table->string('payment_code')->unique();
+            $table->string('payment_method');
+            $table->string('payment_account');
             $table->double('amount', 20, 8);
-            $table->double('exchange_amount', 20, 8);
-            $table->double('exchange_rate', 20, 8);
-            $table->double('fee', 20, 8);
-            $table->string('amount_type')->comment('send, receive');
             $table->string('status')->default('pending');
             $table->string('description')->nullable();
             $table->timestamps();
@@ -37,8 +31,8 @@ return new class extends Migration {
      *
      * @return void
      */
-    public function down(): void
+    public function down()
     {
-        Schema::dropIfExists('transactions');
+        Schema::dropIfExists('payments');
     }
 };

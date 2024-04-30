@@ -31,9 +31,23 @@ class AuthServiceImplement extends Service implements AuthService
         return $this->finalResultSuccess($result['data']);
     }
 
+    public function logout($user): array
+    {
+        $result = $this->mainRepository->logout($user);
+        if (!$result['status']) return $this->finalResultFail(message: $result['message']);
+        return $this->finalResultSuccess($result['data']);
+    }
+
     public function refreshToken($refreshToken): array
     {
         $result = $this->mainRepository->refreshToken($refreshToken);
+        if (!$result['status']) return $this->finalResultFail(message: $result['message']);
+        return $this->finalResultSuccess($result['data']);
+    }
+
+    public function verifyProfile($data): array
+    {
+        $result = $this->mainRepository->verifyProfile($data);
         if (!$result['status']) return $this->finalResultFail(message: $result['message']);
         return $this->finalResultSuccess($result['data']);
     }
